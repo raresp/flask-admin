@@ -45,6 +45,7 @@ class CustomModelConverter(orm.ModelConverter):
         return p
 
     def _convert_choices(self, choices):
+
         for c in choices:
             if isinstance(c, tuple):
                 yield c
@@ -61,23 +62,27 @@ class CustomModelConverter(orm.ModelConverter):
 
         kwargs = {
             'label': getattr(field, 'verbose_name', field.name),
-            'description': field.help_text or '',
+            'description': '',
             'validators': [],
-            'filters': [],
-            'default': field.default
+            'filters': []
         }
+        if hasattr(field, 'help_text') and field.help_text:
+            kwargs['help_text'] = field.help_text
+
+        if hasattr(field, 'default') and field.default:
+            kwargs['default'] = field.default
 
         if field_args:
             kwargs.update(field_args)
 
-        if field.required:
+        if hasattr(field, 'required') and field.required:
             kwargs['validators'].append(validators.Required())
         else:
             kwargs['validators'].append(validators.Optional())
 
         ftype = type(field).__name__
 
-        if field.choices:
+        if hasattr(field, 'choices') and field.choices:
             kwargs['choices'] = list(self._convert_choices(field.choices))
 
             if ftype in self.converters:
@@ -123,9 +128,8 @@ class CustomModelConverter(orm.ModelConverter):
         view = self._get_subdocument_config(field.name)
         converter = self.clone_converter(view)
 
-        if field.field.choices:
-            kwargs['multiple'] = True
-            return converter.convert(model, field.field, kwargs)
+        kwargs['multiple'] = True
+        return converter.convert(model, field.field, kwargs)
 
         unbound_field = converter.convert(model, field.field, {})
         return InlineFieldList(unbound_field, min_entries=0, **kwargs)
